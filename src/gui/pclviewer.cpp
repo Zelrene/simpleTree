@@ -34,7 +34,7 @@
 */
 
 #include "pclviewer.h"
-#include <qt4/QtCore/qurl.h>
+#include <QUrl>
 
 
 

@@ -45,7 +45,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFileDialog>
-#include <QWebView>
+// #include <QWebView>   // temporarily disabled for Qt5 migration
 // Point Cloud Library
 #define PCL_NO_PRECOMPILE
 #include <pcl/filters/passthrough.h>
@@ -103,20 +103,25 @@
 #include "../pointclouds/voxelgridfilter.h"
 #include "../../src/gui/curvature/curvaturedialog.h"
 #include "../../src/Model/modelAdjustment/allometry.h"
-#include "../../build/ui_pclviewer.h"
-#include "../../build/ui_radius_dialog.h"
-#include "../../build/ui_intensity_dialog.h"
-#include "../../build/ui_statistical_dialog.h"
-#include "../../build/ui_voxel_grid_dialog.h"
-#include "../../build/ui_euclidean_dialog.h"
-#include "../../build/ui_crop_box_dialog.h"
-#include "../../build/ui_method_dialog.h"
-#include "../../build/ui_allign_dialog.h"
-#include "../../build/ui_crown_dialog.h"
-#include "../../build/ui_allometry_dialog.h"
-#include "../../build/ui_optimize_dialog.h"
+
 #include "../method/optimization/optimization_stem.h"
 #include "color_palette/color_factory.h"
+
+// Wtihin ../gui
+
+// Within /build/
+#include "ui_pclviewer.h"
+#include "ui_radius_dialog.h"
+#include "ui_intensity_dialog.h"
+#include "ui_statistical_dialog.h"
+#include "ui_voxel_grid_dialog.h"
+#include "ui_euclidean_dialog.h"
+#include "ui_crop_box_dialog.h"
+#include "ui_method_dialog.h"
+#include "ui_allign_dialog.h"
+#include "ui_crown_dialog.h"
+#include "ui_allometry_dialog.h"
+#include "ui_optimize_dialog.h"
 
 
 class SetCoefficients;
