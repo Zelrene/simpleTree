@@ -1,8 +1,12 @@
-cmake_minimum_required (VERSION 2.6 FATAL_ERROR)
+cmake_minimum_required (VERSION 3.5 FATAL_ERROR)
 project (simpleTree)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++0x")
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRDE ON)
+
 set(CMAKE_BUILD_TYPE Release)
-find_package (Qt4  COMPONENTS QtCore QtGui QtWebKit REQUIRED)
+
+find_package (Qt5  REQUIRED COMPONENTS Core Gui Widgets)
 find_package (VTK REQUIRED)
 find_package (PCL 1.8.0 REQUIRED)
 
@@ -10,47 +14,59 @@ include_directories (${PCL_INCLUDE_DIRS})
 link_directories (${PCL_LIBRARY_DIRS})
 add_definitions (${PCL_DEFINITIONS})
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
 
+set(CMAKE_AUTOUIC_SEARCH_PATHS
+	${CMAKE_SOURCE_DIR}/gui
+	${CMAKE_SOURCE_DIR}/gui/cropbox
+	${CMAKE_SOURCE_DIR}/gui/cropsphere
+	${CMAKE_SOURCE_DIR}/gui/reference
+	${CMAKE_SOURCE_DIR}/gui/curvature
+	${CMAKE_SOURCE_DIR}/gui/allign
+)
 
-set (project_SOURCES gui/color_palette/color_factory.cpp
-                     gui/publication/erythrophleum_fordii/ery_denoise.cpp
-                     gui/publication/quercus_petraea/quercus_denoise.cpp
-                     gui/publication/pinus_massoniana/pine_denoise.cpp
-                     gui/publication/platanus/plane_folder.cpp
-                     gui/publication/eucalyptus_spp/eucalypt_folder.cpp
-                     gui/publication/erythrophleum_fordii/ery_folder.cpp
-                     gui/publication/pinus_massoniana/pinus_folder.cpp
-                     gui/publication/quercus_petraea/quercus_folder.cpp
-                     method/optimization/workerspherefollowing.cpp
-                     method/optimization/optimization.cpp
-                     Model/childcylinderextraction.cpp
-                     gui/cropbox/cropboxdialog.cpp
-                     gui/cropsphere/cropspheredialog.cpp
-                     gui/reference/referenceheightdialog.cpp
-                     gui/statistics/visustatistics.cpp
-                     Model/modelAdjustment/allometry.cpp
-                     pointclouds/bufferpointcloud.cpp
-                     gui/curvature/curvaturedialog.cpp
-                     pointclouds/voxelgridfilter.cpp
-                     pointclouds/allignpointcloud.cpp
-                     export/exportply.cpp
-                     export/writecsv.cpp
-                     main.cpp
-                     controller.cpp
-                     gui/pclviewer.cpp
-                     import/importpcd.cpp
-                     method/SphereFollowing.cpp
-                     method/eigenvalueestimator.cpp
-                     method/StemPointDetection.cpp
-                     method/set_coefficients.cpp
-                     Model/crown.cpp
-                     Model/Cylinder.cpp
-                     Model/Segment.cpp
-                     Model/Tree.cpp
-                     gui/allign/allign.cpp
-                     method/stem_fit.cpp
-                     method/optimization/optimization_stem.cpp
-                     method/optimization/workerstemfit.cpp)
+set (project_SOURCES 
+		gui/color_palette/color_factory.cpp
+		gui/publication/erythrophleum_fordii/ery_denoise.cpp
+		gui/publication/quercus_petraea/quercus_denoise.cpp
+		gui/publication/pinus_massoniana/pine_denoise.cpp
+		gui/publication/platanus/plane_folder.cpp
+		gui/publication/eucalyptus_spp/eucalypt_folder.cpp
+		gui/publication/erythrophleum_fordii/ery_folder.cpp
+		gui/publication/pinus_massoniana/pinus_folder.cpp
+		gui/publication/quercus_petraea/quercus_folder.cpp
+		method/optimization/workerspherefollowing.cpp
+		method/optimization/optimization.cpp
+		Model/childcylinderextraction.cpp
+		gui/cropbox/cropboxdialog.cpp
+		gui/cropsphere/cropspheredialog.cpp
+		gui/reference/referenceheightdialog.cpp
+		gui/statistics/visustatistics.cpp
+		Model/modelAdjustment/allometry.cpp
+		pointclouds/bufferpointcloud.cpp
+		gui/curvature/curvaturedialog.cpp
+		pointclouds/voxelgridfilter.cpp
+		pointclouds/allignpointcloud.cpp
+		export/exportply.cpp
+		export/writecsv.cpp
+		main.cpp
+		controller.cpp
+		gui/pclviewer.cpp
+		import/importpcd.cpp
+		method/SphereFollowing.cpp
+		method/eigenvalueestimator.cpp
+		method/StemPointDetection.cpp
+		method/set_coefficients.cpp
+		Model/crown.cpp
+		Model/Cylinder.cpp
+		Model/Segment.cpp
+		Model/Tree.cpp
+		gui/allign/allign.cpp
+		method/stem_fit.cpp
+		method/optimization/optimization_stem.cpp
+		method/optimization/workerstemfit.cpp)
 
 
 set (project_HEADERS
@@ -118,16 +134,20 @@ set (project_FORMS
 		     gui/optimize_dialog.ui 
 
 		     )
-set (VTK_LIBRARIES vtkRendering vtkGraphics vtkHybrid QVTK)
 
-QT4_WRAP_CPP (project_HEADERS_MOC   ${project_HEADERS})
-QT4_WRAP_UI  (project_FORMS_HEADERS ${project_FORMS})
+# VTK 
+include(${VTK_USE_FILE})
 
-INCLUDE (${QT_USE_FILE})
-ADD_DEFINITIONS (${QT_DEFINITIONS})
+ADD_EXECUTABLE (simpleTree 
+		${project_SOURCES}
+		${project_FORMS_HEADERS}
+		${project_HEADERS_MOC}
+)
 
-ADD_EXECUTABLE (simpleTree ${project_SOURCES}
-                               ${project_FORMS_HEADERS}
-                               ${project_HEADERS_MOC})
-
-TARGET_LINK_LIBRARIES (simpleTree ${QT_LIBRARIES} ${PCL_LIBRARIES} ${VTK_LIBRARIES})
+TARGET_LINK_LIBRARIES (simpleTree 
+	Qt5::Core
+	Qt5::Gui
+	Qt5::Widgets 
+	${PCL_LIBRARIES} 
+	${VTK_LIBRARIES}
+)
