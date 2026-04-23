@@ -68,50 +68,92 @@ Stem_fit::compute()
 void
 Stem_fit::fit_circle(PointCloudI::Ptr cloud, float lower_height, float upper_height, float epsilon)
 {
-    pcl::PointCloud<PointI>::Ptr cloud_2d (new pcl::PointCloud<PointI>);
-    cloud_2d->points.resize(cloud->points.size());
-    for(size_t i = 0; i < cloud->points.size(); i++)
-    {
-        float x = cloud->points.at(i).x;
-        float y = cloud->points.at(i).y;
-        float z = (lower_height+upper_height)/2;
+        // Safety Check
+        if (!cloud || cloud->empty())
+        {
+            std::cerr << "[fit_circle] ERROR: empty input cloud.\n";
+            return;
+        }
 
+        // Remove NaNs and infs (for PCL RANSAC stability)
+        std::vector<int> valid_indices;
+        pcl::removeNaNFromPointCloud(*cloud, *cloud, valid_indices);
 
-        PointI p;
-        p.x =x;
-        p.y =y;
-        p.z = z;
-        cloud_2d->points.at(i) = p;
-    }
+        if(cloud->empty())
+        {
+            std::cerr << "[fit_circle] ERROR: cloud empty after NaN removal.\n";
+            return;
+        }
 
+        // Build 2D Projection (XY only)
+        PointCloudI::Ptr cloud_2d(new pcl::PointCloud<PointI>);
+        cloud_2d->reserve(cloud->size());
 
-    pcl::NormalEstimation<PointI, PointI> ne;
-      ne.setInputCloud (cloud_2d);
-      pcl::search::KdTree<PointI>::Ptr tree (new pcl::search::KdTree<PointI> ());
-      ne.setSearchMethod (tree);
-      ne.setKSearch(20);
-      ne.compute (*cloud_2d);
+        float z_plane = (lower_height + upper_height) / 2.0;
 
+        for (const auto& p : cloud->points)
+        {
+            PointI q;
+            q.x = p.x;
+            q.y = p.y;
+            q.z = z_plane;  // flatten to a slice plane
+            cloud_2d->push_back(q);
+        }
 
+        if (cloud_2d->size() < 1)
+        {
+            std::cerr << "[fit_circle] ERROR: too few points for circle fit.\n";
+            return;
+        }
 
+        // OPTIONAL: DOWN-SAMPLING STABILITY CHECK
+        pcl::VoxelGrid<PointI> vg;
+        vg.setInputCloud(cloud_2d);
+        vg.setLeafSize(0.01f, 0.01f, 0.01f);
 
-    pcl::SACSegmentationFromNormals<PointI, PointI> seg;
-    pcl::PointIndices::Ptr inliers_cylinder(new pcl::PointIndices);
-    pcl::ModelCoefficients::Ptr coefficients_circle3d(
-            new pcl::ModelCoefficients);
+        PointCloudI::Ptr cloud_filtered(new pcl::PointCloud<PointI>);
+        vg.filter(*cloud_filtered);
 
-    seg.setOptimizeCoefficients(true);
-    seg.setModelType(pcl::SACMODEL_CIRCLE3D);
-    seg.setMethodType(pcl::SAC_MLESAC);
-    seg.setMaxIterations(100);
-    seg.setDistanceThreshold(epsilon);
-    seg.setInputCloud(cloud_2d);
-    seg.setInputNormals(cloud_2d);
+        if (cloud_filtered->size() < 1)
+            cloud_filtered = cloud_2d;
 
-    // Obtain the cylinder inliers and coefficients
-    seg.segment(*inliers_cylinder, *coefficients_circle3d);
-    circles.push_back(*coefficients_circle3d);
+        // RANSAC Circle fit (2D)
+        pcl::SACSegmentation<PointI> seg;
 
+        pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+        pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
 
+        seg.setOptimizeCoefficients(true);
+        seg.setModelType(pcl::SACMODEL_CIRCLE2D);
+        seg.setMethodType(pcl::SAC_RANSAC);
+
+        seg.setMaxIterations(200);
+        seg.setDistanceThreshold(epsilon);
+
+        seg.setInputCloud(cloud_filtered);
+        seg.segment(*inliers, *coefficients);
+
+        // Validation of result
+        if (inliers->indices.empty())
+        {
+            std::cerr << "[fit_circle] WARNING: no circle found\n";
+            return;
+        }
+
+        if (coefficients->values.size() < 3)
+        {
+            std::cerr << "[fit_circle] ERROR: invalid coefficients\n";
+            return;
+        }
+
+        // Store Result
+        circles.push_back(*coefficients);
+
+        std::cout << "[fit_circle] success: "
+                << "center=(" << coefficients->values[0] << ", "
+                << coefficients->values[1] << ") "
+                << "radius=" << coefficients->values[2]
+                << " inliers=" << inliers->indices.size()
+                << std::endl;
 
 }
