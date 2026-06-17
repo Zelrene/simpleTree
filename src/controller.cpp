@@ -35,14 +35,10 @@
 #include "controller.h"
 
 Controller::Controller ()
-{
-
-}
+{}
 
 Controller::~Controller ()
-{
-
-}
+{}
 
 pcl::PointCloud<pcl::PrincipalCurvatures>::Ptr
 Controller::getCurvaturePtr ()
@@ -54,9 +50,34 @@ void
 Controller::init (int argc,
                   char *argv[])
 {
-
+    // Below is original code
     QApplication a (argc, argv);
     QRect screenres = QApplication::desktop ()->screenGeometry (1/*screenNumber*/);
+
+    if (argc == 3)
+    {
+        std::string input_dir = argv[1];
+        std::string output_dir = argv[2];
+
+        // run after event loop starts
+        QTimer::singleShot(
+            0,
+            [=]()
+            {
+                this->runBatch(
+                    input_dir,
+                    output_dir
+                );
+
+                // auto close app
+                QApplication::quit();
+            }
+        );
+
+        a.exec();
+        return;
+    }
+
 
     this->gui_ptr.reset (new PCLViewer);
     this->gui_ptr->move (QPoint (screenres.x (), screenres.y ()));
@@ -69,6 +90,85 @@ Controller::init (int argc,
     this->gui_ptr->connectToController (shared_from_this ());
     a.exec ();
 }
+
+void Controller::runCLI(std::string input, std::string output)
+{
+    ImportPCD import(input, shared_from_this());
+
+    cloud_ptr = import.getCloud();
+
+    auto cloud = getCloudPtr();
+    if (!cloud) return;
+
+    EigenValueEstimator(
+        cloud,
+        e1,
+        e2,
+        e3,
+        isStem,
+        0.035f
+    );
+
+    StemPointDetection detect(cloud, isStem);
+    setIsStem(detect.getStemPtsNew());
+
+    Method_Coefficients mc; // default CLI
+
+    // GUI OFF: no gui_ptr usage
+    // if future GUI needed:
+    // if (gui_ptr) mc = gui_ptr->getMethodCoefficients();
+
+    float min_height = -1.0f;
+    float bin_width = mc.bin_width;
+
+    SphereFollowing sf(
+        cloud,
+        getIsStem(),
+        1,
+        mc,
+        min_height,
+        bin_width
+    );
+
+    auto tree =
+        boost::make_shared<simpleTree::Tree>(
+            sf.getCylinders(),
+            cloud,
+            output,
+            true
+        );
+
+    setTreePtr(tree);
+
+    fs::create_directories(output);
+
+    ExportPly(tree->getCylinders(), output, "tree");
+    WriteCSV(tree, output);
+}
+
+void Controller::runBatch(std::string input_dir, std::string output_root)
+{
+    std::vector<std::string> inputs;
+
+    for (const auto& entry : fs::directory_iterator(input_dir))
+    {
+        if (!fs::is_regular_file(entry.path())) continue;
+
+        if (entry.path().extension() == ".pcd")
+            inputs.push_back(entry.path().string());
+    }
+
+    std::sort(inputs.begin(), inputs.end());
+
+    for (const auto& in : inputs)
+    {
+        std::string stem = fs::path(in).stem().string();
+        std::string out_dir = output_root + "/" + stem;
+
+        runCLI(in, out_dir);
+    }
+}
+
 
 std::string
 Controller::getTreeID ()

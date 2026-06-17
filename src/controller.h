@@ -37,6 +37,7 @@
 #define CONTROLLER_H
 
 #include <QApplication>
+#include <QTimer>
 
 #include <QMainWindow>
 #include <QString>
@@ -87,6 +88,9 @@ public:
     void
     init (int argc,
           char *argv[]);
+
+    void runCLI(std::string input, std::string output);
+    void runBatch(std::string input_dir, std::string output_root);
 
     boost::shared_ptr<simpleTree::Tree>
     getTreePtr ();

@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.5 FATAL_ERROR)
 project (simpleTree)
 
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRDE ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_BUILD_TYPE Release)
 
@@ -150,4 +150,5 @@ TARGET_LINK_LIBRARIES (simpleTree
 	Qt5::Widgets 
 	${PCL_LIBRARIES} 
 	${VTK_LIBRARIES}
+    stdc++fs
 )

@@ -209,8 +209,8 @@ private:
     convertPointCloud(PointCloudI::Ptr);
 
 
-    void
-    computeNormals(PointCloudI::Ptr cloud);
+    // void
+    // computeNormals(PointCloudI::Ptr cloud);
     CurvatureCloud::Ptr
     computeCurvature(PointCloudI::Ptr cloud);
 
@@ -221,6 +221,9 @@ private:
 
 
 public:
+
+    void
+    computeNormals(PointCloudI::Ptr cloud);
 
     boost::shared_ptr<pcl::visualization::PCLPlotter> plotter;
 
