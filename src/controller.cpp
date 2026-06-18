@@ -93,55 +93,87 @@ Controller::init (int argc,
 
 void Controller::runCLI(std::string input, std::string output)
 {
+    headless = true;
     ImportPCD import(input, shared_from_this());
 
     cloud_ptr = import.getCloud();
+    std::cout << "[DEBUG] after import: cloud = " 
+          << (cloud_ptr ? cloud_ptr->size() : -1) << std::endl;
 
     auto cloud = getCloudPtr();
     if (!cloud) return;
 
-    EigenValueEstimator(
-        cloud,
-        e1,
-        e2,
-        e3,
-        isStem,
-        0.035f
-    );
+    EigenValueEstimator( cloud, e1, e2, e3, isStem, 0.035f );
+    std::cout << "[DEBUG] after eigen: "
+          << "e1=" << e1.size()
+          << " e2=" << e2.size()
+          << " e3=" << e3.size()
+          << " isStem=" << isStem.size()
+          << std::endl;
 
     StemPointDetection detect(cloud, isStem);
     setIsStem(detect.getStemPtsNew());
+    std::cout << "[DEBUG] after stem detection: isStem="
+          << getIsStem().size()
+          << std::endl;
 
-    Method_Coefficients mc; // default CLI
-
-    // GUI OFF: no gui_ptr usage
-    // if future GUI needed:
-    // if (gui_ptr) mc = gui_ptr->getMethodCoefficients();
+    Method_Coefficients mc{};
+    mc.sphere_radius_multiplier = 1.8f;
+    mc.epsilon_cluster_stem = 0.02f;
+    mc.epsilon_cluster_branch = 0.008f;
+    mc.epsilon_sphere = 0.02f;
+    mc.minPts_ransac_stem = 2000;
+    mc.minPts_cluster_stem = 12;
+    mc.min_radius_sphere_stem = 0.035f;
+    mc.min_radius_sphere_branch = 0.025f;
+    mc.bin_width = 1.0f;
+    mc.max_iterations = 2;
 
     float min_height = -1.0f;
     float bin_width = mc.bin_width;
 
-    SphereFollowing sf(
-        cloud,
-        getIsStem(),
-        1,
-        mc,
-        min_height,
-        bin_width
-    );
+    std::cout << "[DEBUG] BEFORE SphereFollowing" << std::endl;
+    std::cout << "[DEBUG] cloud size: " << cloud->size() << std::endl;
+    std::cout << "[DEBUG] stem size: " << getIsStem().size() << std::endl;
+    SphereFollowing sf( cloud, getIsStem(), 1, mc, min_height, bin_width );
+    std::cout << "[DEBUG] AFTER SphereFollowing cylinders="
+          << sf.getCylinders().size()
+          << std::endl;
 
-    auto tree =
-        boost::make_shared<simpleTree::Tree>(
-            sf.getCylinders(),
-            cloud,
-            output,
-            true
-        );
+
+    std::cout << "[DEBUG] BEFORE Tree construction" << std::endl;
+
+    auto cyl = sf.getCylinders();
+    std::cout << "[DEBUG] cylinders from SF = " << cyl.size() << std::endl;
+
+    if (cyl.empty())
+    {
+        std::cout << "[BATCH] EMPTY CYLINDERS -> skipping file" << std::endl;
+        return;   // OR continue batch loop
+    }
+
+    for (const auto& c : cyl)
+    {
+        if (c.values.size() < 6 || !std::isfinite(c.values[0]))
+            throw std::runtime_error("Tree: invalid cylinder detected");
+    }
+    
+    std::cout << "[DEBUG] cloud ptr: " << (cloud ? "OK" : "NULL") << std::endl;
+    std::cout << "[DEBUG] cloud size: " << cloud->size() << std::endl;
+    std::cout << "[DEBUG] output: " << output << std::endl;
+
+    std::cout << "[DEBUG] constructing Tree..." << std::endl;
+    auto tree = boost::make_shared<simpleTree::Tree>(
+        cyl,
+        cloud,
+        output,
+        true
+    );
+    std::cout << "[DEBUG] Tree constructed" << std::endl;
 
     setTreePtr(tree);
 
     fs::create_directories(output);
-
     ExportPly(tree->getCylinders(), output, "tree");
     WriteCSV(tree, output);
 }
@@ -150,23 +182,72 @@ void Controller::runBatch(std::string input_dir, std::string output_root)
 {
     std::vector<std::string> inputs;
 
-    for (const auto& entry : fs::directory_iterator(input_dir))
-    {
-        if (!fs::is_regular_file(entry.path())) continue;
+for (const auto& entry : fs::directory_iterator(input_dir))
+{
+    if (!fs::is_regular_file(entry.path())) continue;
 
-        if (entry.path().extension() == ".pcd")
-            inputs.push_back(entry.path().string());
-    }
+    if (entry.path().extension() == ".pcd")
+        inputs.push_back(entry.path().string());
+}
 
-    std::sort(inputs.begin(), inputs.end());
+std::sort(inputs.begin(), inputs.end());
 
-    for (const auto& in : inputs)
+if (inputs.empty())
+{
+    std::cout << "[BATCH] No .pcd files found in input directory." << std::endl;
+    return;
+}
+
+fs::create_directories(output_root);
+
+for (const auto& in : inputs)
+{
+    try
     {
         std::string stem = fs::path(in).stem().string();
         std::string out_dir = output_root + "/" + stem;
 
+        fs::create_directories(out_dir);
+
+        std::cout << "\n[BATCH] Processing: " << in << std::endl;
+
         runCLI(in, out_dir);
+
+        std::cout << "[BATCH] Done: " << in << std::endl;
     }
+    catch (const std::exception& e)
+    {
+        std::cout << "[BATCH] ERROR file: " << in
+                  << " | " << e.what() << std::endl;
+    }
+    catch (...)
+    {
+        std::cout << "[BATCH] UNKNOWN ERROR file: " << in << std::endl;
+    }
+}
+}
+
+bool Controller::hasGui() const {
+    return !headless && gui_ptr;
+}
+
+PCLViewer* Controller::GUI() {
+    return hasGui() ? gui_ptr.get() : nullptr;
+}
+
+void Controller::safeProcessEvents() {
+    if (!headless)
+        QCoreApplication::processEvents();
+}
+
+void Controller::safeWriteConsole(const QString& msg) {
+    if (gui_ptr)
+        gui_ptr->writeConsole(msg);
+}
+
+void Controller::safeUpdateProgress(int v) {
+    if (gui_ptr)
+        gui_ptr->updateProgress(v);
 }
 
 
@@ -241,6 +322,7 @@ Controller::setCurvaturePtr (CurvatureCloud::Ptr curvature_ptr)
 boost::shared_ptr<PCLViewer>
 Controller::getGuiPtr ()
 {
+    if (headless) return nullptr;
     return this->gui_ptr;
 }
 

@@ -48,6 +48,7 @@ namespace simpleTree
   Cylinder::~Cylinder ()
   {
     // TODO Auto-generated destructor stub
+    std::cout << "[CYLINDER] DESTRUCTOR ENTER " << this << std::endl;
   }
 
   int

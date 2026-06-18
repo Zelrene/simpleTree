@@ -62,6 +62,7 @@ namespace simpleTree
   Segment::~Segment ()
   {
     // TODO Auto-generated destructor stub
+    std::cout << "[SEGMENT] DESTRUCTOR ENTER " << this << std::endl;
   }
 
   QString

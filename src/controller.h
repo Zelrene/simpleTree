@@ -80,10 +80,15 @@ private:
 
     std::string treeID = "test cloud";
 
+    bool headless = false;
+
 public:
     Controller ();
 
     ~Controller ();
+
+    Controller* getControl() { return this; }
+    const Controller* getControl() const { return this; }
 
     void
     init (int argc,
@@ -91,6 +96,12 @@ public:
 
     void runCLI(std::string input, std::string output);
     void runBatch(std::string input_dir, std::string output_root);
+
+    bool hasGui() const;
+    PCLViewer* GUI();
+    void safeProcessEvents();
+    void safeWriteConsole(const QString& msg);
+    void safeUpdateProgress(int v);
 
     boost::shared_ptr<simpleTree::Tree>
     getTreePtr ();

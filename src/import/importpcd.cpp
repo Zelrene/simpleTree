@@ -34,30 +34,46 @@
 */
 #include "importpcd.h"
 
-ImportPCD::ImportPCD (std::string fileName,
-                      boost::weak_ptr<Controller> control)
+ImportPCD::ImportPCD(std::string fileName,
+                     boost::weak_ptr<Controller> control)
 {
-
     this->_control = control;
     this->_fileName = fileName;
-    if (fileName.length () > 4)
+
+    auto c = getControl();
+    bool gui_ok = (c && c->getGuiPtr());
+
+    if (fileName.length() > 4)
     {
-        std::string ext = fileName.substr (fileName.length () - 3, 3);
+        std::string ext = fileName.substr(fileName.length() - 3, 3);
+
         if (ext == "pcd")
         {
-            getControl ()->getGuiPtr ()->updateProgress (0);
-            QCoreApplication::processEvents ();
-            _cloud_intens = importPCD ();
-            getControl ()->getGuiPtr ()->updateProgress (100);
-            QCoreApplication::processEvents ();
+            if (gui_ok) {
+                c->getGuiPtr()->updateProgress(0);
+                QCoreApplication::processEvents();
+            }
+
+            _cloud_intens = importPCD();
+
+            if (gui_ok) {
+                c->getGuiPtr()->updateProgress(100);
+                QCoreApplication::processEvents();
+            }
         }
-        else if (ext == "asc"||ext == "txt")
+        else if (ext == "asc" || ext == "txt")
         {
-            getControl ()->getGuiPtr ()->updateProgress (0);
-            QCoreApplication::processEvents ();
-            _cloud_intens = importASC ();
-            getControl ()->getGuiPtr ()->updateProgress (100);
-            QCoreApplication::processEvents ();
+            if (gui_ok) {
+                c->getGuiPtr()->updateProgress(0);
+                QCoreApplication::processEvents();
+            }
+
+            _cloud_intens = importASC();
+
+            if (gui_ok) {
+                c->getGuiPtr()->updateProgress(100);
+                QCoreApplication::processEvents();
+            }
         }
     }
 }
